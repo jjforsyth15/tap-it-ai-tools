@@ -44,17 +44,23 @@ def review_contracts(
         raise typer.Exit(code=1)
     
     typer.echo(f"Found {len(pairs)} contract pair(s).\n")
-    
+
+    all_errors = []
+    all_warnings = []
+
     for backend_file, frontend_file in pairs:
         typer.echo(f"Reviewing {backend_file.name} <-> {frontend_file.name}")
-        
+
         review = review_contract(backend_file, frontend_file)
-        
+
         errors = [issue for issue in review.issues if issue.severity == "error"]
         warnings = [issue for issue in review.issues if issue.severity == "warning"]
-        
+
+        all_errors.extend(errors)
+        all_warnings.extend(warnings)
+
         typer.echo(f"Errors: {len(errors)} | Warnings: {len(warnings)}")
-        
+
         if report:
             typer.echo("Full report:")
             for issue in review.issues:
@@ -65,16 +71,17 @@ def review_contracts(
                 typer.echo(f"Field: {issue.field}")
                 typer.echo(f"Problem: {issue.problem}")
                 typer.echo(f"Suggested Fix: {issue.suggested_fix}")
-            
-    if errors:
-        typer.echo("\nContract review failed: ")  
-        typer.echo(f"{len(errors)} error(s) found.")
-        typer.echo(f"{len(warnings)} warning(s) found.")
-    
-    elif warnings and not errors:
-        typer.echo("\nContract review passed with warnings: ")  
-        typer.echo(f"{len(warnings)} warning(s) found.")
-    
+
+    if all_errors:
+        typer.echo("\nContract review failed: ")
+        typer.echo(f"{len(all_errors)} error(s) found.")
+        typer.echo(f"{len(all_warnings)} warning(s) found.")
+        raise typer.Exit(code=1)
+
+    elif all_warnings:
+        typer.echo("\nContract review passed with warnings: ")
+        typer.echo(f"{len(all_warnings)} warning(s) found.")
+
     else:
         typer.echo("\nContract review passed: No issues found.")
                 
