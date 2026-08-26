@@ -7,6 +7,14 @@ from tapit_ai.reviewers.fixer import generate_fix
 from tapit_ai.utils.discovery import discover_contract_pairs
 from tapit_ai.testing.agent import run as run_journey_tests
 from tapit_ai.testing.models import TestStatus
+from tapit_ai.testing.dev_servers import (
+    BACKEND_URL,
+    FRONTEND_URL,
+    is_backend_up,
+    is_frontend_up,
+    run_dev_environment,
+    wait_for_manual_stop,
+)
 
 app = typer.Typer(
     help="TapIt AI Development Tools."
@@ -145,11 +153,61 @@ def review_contracts(
         typer.echo("\nContract review passed: No issues found.")
 
 
+@test_app.command("init")
+def test_init():
+    """Check whether the local backend/frontend are already running and start whichever aren't."""
+    _require_command_env("TAP_IT_BACKEND_PATH", "TAP_IT_FRONTEND_PATH")
+
+    from tapit_ai.config import BACKEND_ROOT, FRONTEND_ROOT
+
+    backend_up = is_backend_up()
+    frontend_up = is_frontend_up()
+
+    if backend_up and frontend_up:
+        typer.echo("Backend and frontend are both already running. Run `tapit-ai test journeys` when you're ready.")
+        return
+
+    if not backend_up and not frontend_up:
+        run_dev_environment(BACKEND_ROOT, FRONTEND_ROOT, start_backend=True, start_frontend=True)
+        return
+
+    running = "backend" if backend_up else "frontend"
+    missing = "frontend" if backend_up else "backend"
+
+    typer.echo(f"The {running} is already running; the {missing} is not.")
+    typer.echo(f"  1) Start the {missing} only, leave {running} as-is")
+    typer.echo("  2) Restart both together")
+    typer.echo("  3) Cancel")
+
+    choice = typer.prompt("Choose 1, 2, or 3")
+
+    while choice not in ("1", "2", "3"):
+        choice = typer.prompt("Please enter 1, 2, or 3")
+
+    if choice == "3":
+        typer.echo("Cancelled -- nothing started.")
+        return
+
+    if choice == "1":
+        run_dev_environment(
+            BACKEND_ROOT,
+            FRONTEND_ROOT,
+            start_backend=(missing == "backend"),
+            start_frontend=(missing == "frontend"),
+        )
+        return
+
+    running_url = BACKEND_URL if running == "backend" else FRONTEND_URL
+    typer.echo(f"\nStop the running {running} yourself (Ctrl+C in its terminal).")
+    wait_for_manual_stop(running_url, running)
+    run_dev_environment(BACKEND_ROOT, FRONTEND_ROOT, start_backend=True, start_frontend=True)
+
+
 @test_app.command("journeys")
 def test_journeys():
     """Run all TapIt user journey tests (Playwright browser automation)."""
     _require_command_env(
-        "TAPIT_BASE_URL",
+        "TAPIT_FRONTEND_URL",
         "TAPIT_TEST_EMAIL",
         "TAPIT_TEST_PASSWORD",
     )

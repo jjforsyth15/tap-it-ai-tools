@@ -61,6 +61,50 @@ rewrite frontend types.
   found across pairs — it isn't yet safe to use as a hard gate (e.g. in CI or
   a pre-commit hook) until that's fixed.
 
+## `test init` — start the local dev environment
+
+Checks whether `tap-it-server` and `tap-it-web` are already running locally
+and starts whichever aren't, so `test journeys` has something to run
+against. Reuses `TAP_IT_BACKEND_PATH`/`TAP_IT_FRONTEND_PATH` from `.env` (the
+same paths the contract reviewer uses) to find the sibling repos.
+
+### Usage
+tapit-ai test init
+
+- Both already running -- reports ready, does nothing.
+- Neither running -- starts both (`uvicorn app.main:app --reload` and
+  `npm run dev`), streams their output prefixed `[backend]`/`[frontend]` in
+  this terminal, and blocks until you press Ctrl+C, which stops both.
+- Exactly one running -- tells you which, then asks: start just the missing
+  one (leaving the running one alone), stop-and-restart both (you stop the
+  running one yourself, it waits until that's actually confirmed before
+  starting anything), or cancel.
+
+Only ever stops processes it started itself -- never anything it detected
+was already running.
+
+Before launching the backend, merges tap-it-server/.env into its process environment itself (tap-it-server's own main.py currently calls load_dotenv() after some imports that already need env vars it sets -- see NOTES.md -- so test init doesn't rely on that ordering).
+
+### Setup
+
+Optional overrides if your local ports differ from the defaults
+(`http://127.0.0.1:8000` for the backend, `http://localhost:5173` for the
+frontend): `TAPIT_BACKEND_URL` / `TAPIT_FRONTEND_URL` in `.env`. These are
+separate from `TAPIT_BASE_URL` below (which is what `test journeys` actually
+navigates to, and may point at a deployed environment) specifically so the
+two don't get confused with each other.
+
+### Known limitations
+
+- Assumes `uvicorn` and `npm` are already resolvable on PATH in whatever
+  shell you run `tapit-ai test init` from -- same as running them manually.
+  It doesn't activate a virtualenv or otherwise set up either app's own
+  dependencies.
+- The "restart both" option asks you to stop the already-running one
+  yourself rather than killing it automatically, since it wasn't started by
+  this command and locating+killing an unrelated process by port alone is
+  worth avoiding.
+
 ## `test journeys` — user journey testing agent
 
 Runs a deterministic Playwright browser-automation suite against a live

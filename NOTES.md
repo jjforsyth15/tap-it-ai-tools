@@ -32,3 +32,60 @@ Confirm for real:
 5. Temporarily break the login flow (e.g. wrong password in `.env`) and
    re-run — confirm it still reports `FAILED` cleanly with exit code `1`
    rather than crashing.
+
+## Manual verification: `tapit-ai test init`
+
+Verified in this session: `py_compile`, a full stub-based smoke test of all
+three `cli.py` branches (both up / neither up / exactly-one-up x each of the
+3 choices), and a real functional test of `dev_servers.run_dev_environment`
+substituting two `python3 -m http.server` processes for uvicorn/npm on this
+(Linux) sandbox -- confirmed it correctly detects not-running, starts both,
+streams prefixed output, detects readiness, handles Ctrl+C (SIGINT) cleanly,
+and both processes are confirmed stopped afterward.
+
+NOT verified (needs your machine): the real `uvicorn`/`npm run dev` commands
+specifically, and the Windows `taskkill /F /T` shutdown path (this sandbox
+is Linux, so only the `terminate()`/`kill()` branch ran). Confirm for real:
+
+1. Close any already-running backend/frontend. `tapit-ai test init` --
+   confirm it starts both, streams recognizable uvicorn/vite startup logs
+   prefixed `[backend]`/`[frontend]`, and prints "Environment ready" once
+   both are up.
+2. Ctrl+C -- confirm both actually stop (check e.g. `http://127.0.0.1:8000`
+   and `http://localhost:5173` are no longer reachable, and no leftover
+   `uvicorn`/`node` process for them in Task Manager).
+3. Start just the frontend manually (`npm run dev`), then `tapit-ai test
+   init` -- confirm it reports "frontend is already running; backend is
+   not" and offers the 3 choices; try each one.
+4. While frontend is running manually, choose "restart both" -- confirm it
+   prompts you to stop the frontend yourself, keeps re-prompting if you hit
+   Enter without actually stopping it, and only proceeds to start both once
+   it's actually down.
+5. Confirm `TAPIT_BASE_URL` in `.env` (if pointed at a deployed URL) does
+   NOT affect `test init`'s "is the frontend up" detection -- only
+   `TAPIT_FRONTEND_URL`/the `localhost:5173` default should.
+
+## Found while testing `tapit-ai test init` for real: tap-it-server env-load ordering bug
+
+Real run on Windows: backend subprocess crashed with `ValueError:
+DATABASE_URL_DIRECT environment variable is not set` even though frontend
+started fine. Root cause is in `tap-it-server/app/main.py`, not
+tap-it-ai-tools: `load_dotenv()` is called after `from app.routes import
+beta, cards, profile_images`, and that import chain reaches
+`app.database`, which needs `DATABASE_URL_DIRECT` at import time --
+before .env has been loaded. Works when Joe runs uvicorn manually only
+because that variable is already present in his shell some other way;
+tapit-ai launching it as a subprocess doesn't have that.
+
+Fixed defensively on the tapit-ai side: `dev_servers.py` now merges
+tap-it-server/.env into the backend subprocess's own environment itself
+(`_subprocess_env()`), independent of whatever main.py does internally.
+Verified with a stand-in script that only succeeds if the env var is
+present, run with DATABASE_URL_DIRECT deliberately absent from the
+launching process's own environment.
+
+Not fixed (different repo, needs Joe's go-ahead, tap-it-server has its own
+stricter modification policy): the actual ordering bug in
+tap-it-server/app/main.py. The real fix there is moving `import os` /
+`from dotenv import load_dotenv` / `load_dotenv()` to the very top of the
+file, before any `app.*` imports.
