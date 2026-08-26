@@ -1,7 +1,9 @@
+import difflib
 import typer
 from pathlib import Path
 from tapit_ai.config import (BACKEND_SCHEMA_DIR, FRONTEND_TYPES_DIR )
 from tapit_ai.reviewers.contract_reviewer import review_contract
+from tapit_ai.reviewers.fixer import generate_fix
 from tapit_ai.utils.discovery import discover_contract_pairs
 
 app = typer.Typer(
@@ -21,6 +23,9 @@ def review_contracts(
     ), 
     file: str | None = typer.Option(
         None, "--file", help="Review a specific contract pair by filename, e.g. -- file beta"
+    ),
+    fix: bool = typer.Option(
+        False, "--fix", help="Interactively generate and apply an AI fix for frontend types with issues."
     )
 ):
     typer.echo("Discovering TapIt contracts...")
@@ -71,6 +76,36 @@ def review_contracts(
                 typer.echo(f"Field: {issue.field}")
                 typer.echo(f"Problem: {issue.problem}")
                 typer.echo(f"Suggested Fix: {issue.suggested_fix}")
+
+        if fix and review.issues:
+            typer.echo(f"\nGenerating fix for {frontend_file.name}...")
+
+            fixed_code = generate_fix(backend_file, frontend_file, review)
+
+            if not fixed_code.strip():
+                typer.echo("Fix generation returned empty content; skipping.")
+            else:
+                current_code = frontend_file.read_text(encoding="utf-8")
+
+                diff = difflib.unified_diff(
+                    current_code.splitlines(keepends=True),
+                    fixed_code.splitlines(keepends=True),
+                    fromfile=f"{frontend_file.name} (current)",
+                    tofile=f"{frontend_file.name} (fixed)",
+                )
+
+                diff_text = "".join(diff)
+
+                if not diff_text:
+                    typer.echo("Generated fix is identical to the current file; skipping.")
+                else:
+                    typer.echo(diff_text)
+
+                    if typer.confirm(f"Apply this fix to {frontend_file.name}?"):
+                        frontend_file.write_text(fixed_code, encoding="utf-8")
+                        typer.echo(f"Applied fix to {frontend_file.name}.")
+                    else:
+                        typer.echo("Fix not applied.")
 
     if all_errors:
         typer.echo("\nContract review failed: ")

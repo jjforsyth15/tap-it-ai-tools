@@ -12,3 +12,6 @@ class ContractIssue(BaseModel):
 class ContractReview(BaseModel):
     status: Literal["passed", "issues_found"]
     issues: list[ContractIssue]
+
+class ContractFix(BaseModel):
+    fixed_code: str
