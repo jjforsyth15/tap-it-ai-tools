@@ -43,7 +43,7 @@ Requires a `.env` file at the repo root with:
 - `OPENAI_API_KEY` — required by the contract reviewer.
 - `TAPIT_BASE_URL`, `TAPIT_TEST_EMAIL`, `TAPIT_TEST_PASSWORD` — required by the testing agent's login scenario. Validated together via the shared `require_env()` helper, which reports every missing variable in one clear message.
 
-`tapit_ai/environment.py` loads `.env` and provides shared validation for both CLI features. Each command validates only its own required variables, so importing the CLI or running `--help` does not require either feature to be configured. All variables can live in `.env` at the repo root.
+`tapit_ai/utils/environment.py` loads `.env` and provides shared validation for both CLI features. Each command validates only its own required variables, so importing the CLI or running `--help` does not require either feature to be configured. All variables can live in `.env` at the repo root.
 
 Install and run:
 ```

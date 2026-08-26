@@ -1,5 +1,5 @@
 from collections.abc import Awaitable, Callable
-from tapit_ai.environment import require_env
+from tapit_ai.utils.environment import require_env
 from tapit_ai.testing.browser import TapItBrowser
 from tapit_ai.testing.models import TestStatus, TestResult
 

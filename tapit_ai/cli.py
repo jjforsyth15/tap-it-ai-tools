@@ -1,7 +1,7 @@
 import difflib
 import typer
 from pathlib import Path
-from tapit_ai.environment import require_env
+from tapit_ai.utils.environment import require_env
 from tapit_ai.reviewers.contract_reviewer import review_contract
 from tapit_ai.reviewers.fixer import generate_fix
 from tapit_ai.utils.discovery import discover_contract_pairs
