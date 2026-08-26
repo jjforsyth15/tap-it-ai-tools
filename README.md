@@ -60,3 +60,39 @@ rewrite frontend types.
 - The CLI currently always exits `0`, even when error-severity issues are
   found across pairs — it isn't yet safe to use as a hard gate (e.g. in CI or
   a pre-commit hook) until that's fixed.
+
+## `test journeys` — user journey testing agent
+
+Runs a deterministic Playwright browser-automation suite against a live
+TapIt frontend (no LLM involved, despite the package name) and reports which
+user journeys still work.
+
+### Setup
+
+`playwright` is installed as part of `pip install -e .`, but the Chromium
+browser binary is a separate one-time step:
+playwright install chromium
+
+Also requires these variables, in `.env` at the repo root or the process
+environment — the testing agent loads `.env` itself, independently of the
+contract reviewer's config:
+
+- `TAPIT_BASE_URL` — base URL of the frontend to test against.
+- `TAPIT_TEST_EMAIL` / `TAPIT_TEST_PASSWORD` — credentials for a test account
+  used by the login scenario.
+
+### Usage
+tapit-ai test journeys # run every registered user journey
+
+Launches a visible (headed) Chromium window. Exits `1` if any journey fails,
+`0` if all pass.
+
+### Known limitations
+
+- Only one journey exists today (`test_login` in
+  `tapit_ai/testing/scenarios.py`). Add more by writing an async function
+  that returns a `TestResult` and adding it to the `SCENARIOS` list in that
+  file.
+- Always runs headed; there's no `--headless` option yet.
+- `test_login` writes a debug screenshot to a hardcoded `login_debug.png` at
+  the repo root on every run, not only on failure.

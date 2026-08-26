@@ -10,7 +10,8 @@ dependencies = [
     "openai",
     "python-dotenv",
     "pydantic",
-    "typer"
+    "typer",
+    "playwright"
 ]
 
 [project.scripts]

@@ -1,15 +1,22 @@
-import os
+from collections.abc import Awaitable, Callable
+from tapit_ai.environment import require_env
 from tapit_ai.testing.browser import TapItBrowser
 from tapit_ai.testing.models import TestStatus, TestResult
 
+
 async def test_login() -> TestResult:
-    base_url = os.environ["TAPIT_BASE_URL"]
-    email = os.environ["TAPIT_TEST_EMAIL"]
-    password = os.environ["TAPIT_TEST_PASSWORD"]
-    
     browser = TapItBrowser()
-    
+
     try:
+        environment = require_env(
+            "TAPIT_BASE_URL",
+            "TAPIT_TEST_EMAIL",
+            "TAPIT_TEST_PASSWORD",
+        )
+        base_url = environment["TAPIT_BASE_URL"]
+        email = environment["TAPIT_TEST_EMAIL"]
+        password = environment["TAPIT_TEST_PASSWORD"]
+
         await browser.start()
         await browser.navigate(f"{base_url}/login")
         
@@ -43,3 +50,8 @@ async def test_login() -> TestResult:
         
     finally:
         await browser.stop()
+
+
+SCENARIOS: list[Callable[[], Awaitable[TestResult]]] = [
+    test_login,
+]

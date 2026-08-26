@@ -4,12 +4,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-backend_path = Path(os.getenv("TAP_IT_BACKEND_PATH"))
-frontend_path = Path(os.getenv("TAP_IT_FRONTEND_PATH"))
-
-
-if not backend_path or not frontend_path:
-    raise ValueError("TAP_IT_BACKEND_PATH and TAP_IT_FRONTEND_PATH must be configured.")
+backend_path = os.getenv("TAP_IT_BACKEND_PATH")
+frontend_path = os.getenv("TAP_IT_FRONTEND_PATH")
 
 BACKEND_ROOT = Path(backend_path)
 FRONTEND_ROOT = Path(frontend_path)

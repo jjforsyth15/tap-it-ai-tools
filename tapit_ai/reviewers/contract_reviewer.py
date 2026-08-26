@@ -2,9 +2,9 @@ from openai import OpenAI
 from pathlib import Path
 from tapit_ai.models.contract import ContractReview
 
-client = OpenAI()
-   
+
 def review_contract(backend_file: Path, frontend_file: Path) -> ContractReview:
+    client = OpenAI()
     backend_code = backend_file.read_text(encoding="utf-8")
     frontend_code = frontend_file.read_text(encoding="utf-8")
     

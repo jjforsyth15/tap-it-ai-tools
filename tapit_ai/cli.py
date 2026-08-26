@@ -1,10 +1,12 @@
 import difflib
 import typer
 from pathlib import Path
-from tapit_ai.config import (BACKEND_SCHEMA_DIR, FRONTEND_TYPES_DIR )
+from tapit_ai.environment import require_env
 from tapit_ai.reviewers.contract_reviewer import review_contract
 from tapit_ai.reviewers.fixer import generate_fix
 from tapit_ai.utils.discovery import discover_contract_pairs
+from tapit_ai.testing.agent import run as run_journey_tests
+from tapit_ai.testing.models import TestStatus
 
 app = typer.Typer(
     help="TapIt AI Development Tools."
@@ -15,6 +17,20 @@ review_app = typer.Typer(
 )
 
 app.add_typer(review_app, name="review")
+
+test_app = typer.Typer(
+    help="Run TapIt user journey tests."
+)
+
+app.add_typer(test_app, name="test")
+
+
+def _require_command_env(*names: str) -> dict[str, str]:
+    try:
+        return require_env(*names)
+    except RuntimeError as error:
+        typer.echo(f"Configuration error: {error}", err=True)
+        raise typer.Exit(code=1) from None
 
 @review_app.command("contracts")
 def review_contracts(
@@ -28,6 +44,14 @@ def review_contracts(
         False, "--fix", help="Interactively generate and apply an AI fix for frontend types with issues."
     )
 ):
+    _require_command_env(
+        "TAP_IT_BACKEND_PATH",
+        "TAP_IT_FRONTEND_PATH",
+        "OPENAI_API_KEY",
+    )
+
+    from tapit_ai.config import BACKEND_SCHEMA_DIR, FRONTEND_TYPES_DIR
+
     typer.echo("Discovering TapIt contracts...")
     
     pairs = discover_contract_pairs(BACKEND_SCHEMA_DIR, FRONTEND_TYPES_DIR)
@@ -119,7 +143,34 @@ def review_contracts(
 
     else:
         typer.echo("\nContract review passed: No issues found.")
-                
-                
+
+
+@test_app.command("journeys")
+def test_journeys():
+    """Run all TapIt user journey tests (Playwright browser automation)."""
+    _require_command_env(
+        "TAPIT_BASE_URL",
+        "TAPIT_TEST_EMAIL",
+        "TAPIT_TEST_PASSWORD",
+    )
+
+    results = run_journey_tests()
+
+    failures = [r for r in results if r.status == TestStatus.FAILED]
+    warnings = [r for r in results if r.status == TestStatus.WARNING]
+
+    if failures:
+        typer.echo(f"\n{len(failures)} of {len(results)} journey test(s) failed.")
+        raise typer.Exit(code=1)
+
+    if warnings:
+        typer.echo(
+            f"\nAll {len(results)} journey test(s) passed "
+            f"({len(warnings)} with warning(s))."
+        )
+    else:
+        typer.echo(f"\nAll {len(results)} journey test(s) passed.")
+
+
 if __name__ == "__main__":
     app()
